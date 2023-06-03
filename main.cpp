@@ -1,5 +1,59 @@
 #include <bits/stdc++.h>
+// #include "fine.h"
+// #include "additional.h"
+// #include "transaction.h"
+// #include "book.h"
+// #include "library_card.h"
+// #include "user.h"
+// #include "librarian.h"
+//#include "library.h"
 using namespace std;
+
+class Fine // kara pieniężna przypisana do karty bibliotecznej czytelnika
+{
+    unsigned int fine_value;
+
+public:
+    Fine(unsigned int _fine_value) : fine_value(_fine_value) {} // delegate constructor
+    unsigned int const getFineValue()
+    {
+        // const wyraźnie wskazuje, że ta metoda nie zmienia obiektu
+        return fine_value;
+    }
+    // jeszcze trzeba dodac opcje splacenia kary
+}; 
+
+bool leap_year(unsigned int y)
+{ // sprawdza, czy rok y jest przestępny
+    if ((y % 4 == 0 && y % 100 != 0) || y % 400 == 0)
+        return true;
+    return false;
+}
+
+bool good_date(unsigned int y, unsigned int m, unsigned int d)
+{
+    if (m == 0 || m > 12 || d == 0 || d > 31)
+        return false;
+    if (leap_year(y) && m == 2 && d > 29)
+        return false;
+    if (!leap_year(y) && m == 2 && d > 28)
+        return false;
+    if (m <= 7)
+    {
+        if (m % 2 != 0 && d > 31)
+            return false;
+        if (m % 2 == 0 && d > 30)
+            return false;
+    }
+    else
+    {
+        if (m % 2 != 0 && d > 30)
+            return false;
+        if (m % 2 == 0 && d > 31)
+            return false;
+    }
+    return true;
+}
 
 struct Date
 {
@@ -14,6 +68,25 @@ struct Date
     }
 };
 
+bool good_time(unsigned int h, unsigned int m)
+{
+    if (h > 24 || m > 60)
+        return false;
+    return true;
+}
+
+unsigned int minutes_between(unsigned int h2, unsigned int m2, unsigned int h1, unsigned int m1)
+{ // liczy ile minut upłynęło między tymi dwoma godzinami (h2,m2) jest później
+    int totalMinutes1 = h1 * 60 + m1;
+    int totalMinutes2 = h2 * 60 + m2;
+    int difference = totalMinutes2 - totalMinutes1;
+    if (difference < 0)
+    {
+        difference += 24 * 60;
+    }
+    return difference;
+}
+
 struct TimeOfTheDay
 {
     unsigned int hour, minute;
@@ -25,19 +98,33 @@ struct TimeOfTheDay
     }
 };
 
-class Fine // kara pieniężna przypisana do karty bibliotecznej czytelnika
+bool cmp(Fine f1, Fine f2)
 {
-    const unsigned int fine_value; // to powoduje, że nie da się zmienić wartości kary albo spłacić jej części
-public:
-    Fine(unsigned int _fine_value) : fine_value(_fine_value) {} // delegate constructor
-    unsigned int const getFineValue()
-    {
-        // const wyraźnie wskazuje, że ta metoda nie zmienia obiektu
-        return fine_value;
-    }
+    return f1.getFineValue() >= f2.getFineValue();
+}
+
+enum DayOfTheWeek
+{
+    MONDAY,
+    TUESDAY,
+    WEDNESDAY,
+    THURSDAY,
+    FRIDAY,
+    SATURDAY,
+    SUNDAY
 };
 
-class Transaction // obiekt transakcji między użytkownikiem a biblioteką
+const string daysOfTheWeek[7] =
+    {
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY",
+        "SATURDAY",
+        "SUNDAY"};
+
+class Transaction // Transakcje są między użytkownikiem a biblioteką
 {
 protected: // to robi, że pola tej klasy są widoczne dla podklas Transaction
     const Date date;
@@ -219,6 +306,24 @@ public:
     {
         return fines;
     }
+    void payFine(unsigned int money)
+    {
+        bool successful = false;
+        sort(fines.begin(), fines.end(), cmp);
+        int i = fines.size() - 1;
+        while (i >= 0 && fines[i].getFineValue() <= money)
+        {
+            money -= fines[i].getFineValue();
+            fines.pop_back();
+            successful = true;
+        }
+        if (successful)
+            cout << "Transaction successfull\n";
+        else
+            cout << "Transaction failed\n";
+        if (money > 0)
+            cout << money << "$ has been returned\n";
+    }
     string getName()
     {
         return name;
@@ -282,28 +387,10 @@ public:
 };
 unsigned int User::nextFreeUserId = 0;
 
-enum DayOfTheWeek
-{
-    MONDAY,
-    TUESDAY,
-    WEDNESDAY,
-    THURSDAY,
-    FRIDAY,
-    SATURDAY,
-    SUNDAY
-};
-
-const string daysOfTheWeek[7] =
-    {
-        "MONDAY",
-        "TUESDAY",
-        "WEDNESDAY",
-        "THURSDAY",
-        "FRIDAY",
-        "SATURDAY",
-        "SUNDAY"};
-
+/*
 class Librarian : public User
+*/
+
 {
     map<DayOfTheWeek, pair<TimeOfTheDay, TimeOfTheDay>> schedule; // godziny pracy w tygodniu dla danego pracownika
 public:
@@ -389,6 +476,10 @@ public:
     {
         return book_collection;
     }
+    Book bookInfo(unsigned int book_id)
+    {
+        return book_collection[book_id];
+    }
     Book retrieveBook(unsigned int book_id)
     {
         if (!book_collection.count(book_id))
@@ -436,7 +527,7 @@ int main()
             return 0;
         if (command == "help")
         {
-            cout << "Available commands: exit, help, lsbooks, lsusers, addBook,\n deleteBook, addUser, deleteUser, hireLibrarian, fireLibrarian, \n createCard, borrowBook, returnBook, userInfo, borrowedBooks, balance\n";
+            cout << "Available commands: exit, help, lsbooks, lsusers, lsLibrarians,\n addBook, deleteBook, addUser, deleteUser, hireLibrarian, \n fireLibrarian, createCard, borrowBook, returnBook, bookInfo, \n userInfo, borrowedBooks, balance, lsfines, payFine\n";
             continue;
         }
         if (command == "lsbooks")
@@ -451,6 +542,12 @@ int main()
                 cout << p.second;
             continue;
         }
+        if (command == "lslibrarians")
+        { // wypisuje użytkowników
+            for (auto p : library.getLibrarians())
+                cout << p.second;
+            continue;
+        }
         if (command == "addbook")
         { // dodanie książki do księgozbioru
             string title, author, isbn;
@@ -458,10 +555,11 @@ int main()
             cin >> title >> author >> isbn;
             library.extendBookCollection(Book(title, author, isbn));
             cout << "\n";
+            cout << "Book has beed added successfully.\n";
             continue;
         }
         if (command == "deletebook")
-        {// usunięcie egzemplaża z księgozbioru biblioteki
+        { // usunięcie egzemplaża z księgozbioru biblioteki
             unsigned int book_id;
             cout << "Give a bookID: ";
             cin >> book_id;
@@ -472,10 +570,11 @@ int main()
             }
             library.removeBook(book_id);
             cout << "\n";
+            cout << "Book has beed removed successfully.\n";
             continue;
         }
         if (command == "adduser")
-        {// dodanie nowego użytkownika
+        { // dodanie nowego użytkownika
             string name, surname;
             cout << "Give a name and surname: ";
             cin >> name >> surname;
@@ -485,7 +584,7 @@ int main()
             continue;
         }
         if (command == "deleteuser")
-        {// usunięcie użytkownika z bazy czytelników
+        { // usunięcie użytkownika z bazy czytelników
             unsigned int user_id;
             cout << "Give a UserID: ";
             cin >> user_id;
@@ -500,11 +599,12 @@ int main()
             continue;
         }
         if (command == "hirelibrarian")
-        {// zatrudnienie nowego bibliotekarza
+        { // zatrudnienie nowego bibliotekarza
             string name, surname;
             map<DayOfTheWeek, pair<TimeOfTheDay, TimeOfTheDay>> schedule;
             cout << "Give a name and surname: ";
             cin >> name >> surname;
+            unsigned int weekly = 0; // suma minut spędzonych na pracy bibliotekarza tygodniowo
             for (int i = 0; i < 7; i++)
             {
                 string ans;
@@ -515,10 +615,36 @@ int main()
                     unsigned int starth, startm, endh, endm;
                     cout << "Give hh mm of start: ";
                     cin >> starth >> startm;
+                    if (!good_time(starth, startm))
+                    {
+                        cout << "Wrong time format.\n";
+                        continue;
+                    }
                     cout << "Give hh mm of end: ";
                     cin >> endh >> endm;
+                    if (!good_time(endh, endm))
+                    {
+                        cout << "Wrong time format.\n";
+                        continue;
+                    }
+                    weekly += minutes_between(endh, endm, starth, startm);
+                    if (weekly > 40 * 60)
+                    {
+                        cout << "Librarians are not allowed to work more than 40h per week.\n";
+                        break;
+                    }
                     schedule[DayOfTheWeek(i)] = {TimeOfTheDay({starth, startm}), TimeOfTheDay({endh, endm})};
                 }
+                continue;
+            }
+            if (weekly < 60)
+            {
+                cout << "Librarians must work at least 1h per week, in order to be hired.\n";
+                continue;
+            }
+            if (weekly > 40 * 60)
+            {
+                cout << "Hiring process not successfull.\n";
                 continue;
             }
             library.hireNewLibrarian(Librarian(name, surname, schedule));
@@ -527,7 +653,7 @@ int main()
             continue;
         }
         if (command == "firelibrarian")
-        {// zwolnienie bibliotekarza
+        { // zwolnienie bibliotekarza
             unsigned int user_id;
             cout << "Give a UserID: ";
             cin >> user_id;
@@ -537,12 +663,12 @@ int main()
                 continue;
             }
             library.fireLibrarian(user_id);
-            cout << "Librarian with id: " << user_id << " was fired successfully.\n";
+            cout << "Librarian was fired successfully.\n";
             cout << "\n";
             continue;
         }
         if (command == "createcard")
-        {// stworzenie nowej karty dla danego użytkownika
+        { // stworzenie nowej karty dla danego użytkownika
             unsigned int user_id;
             cout << "Give me userID: ";
             cin >> user_id;
@@ -554,12 +680,18 @@ int main()
             unsigned int d, m, y;
             cout << "Give today's date in format YYYY MM DD: ";
             cin >> y >> m >> d;
+            if (!good_date(y, m, d))
+            {
+                cout << "Wrong date format.\n";
+                continue;
+            }
             library.createCard(user_id, Date({y, m, d}));
             cout << "\n";
+            cout << "Card was created successfully.\n";
             continue;
         }
         if (command == "borrowbook")
-        {// transakcja wypożyczenia książki
+        { // transakcja wypożyczenia książki
             unsigned int user_id, book_id;
             cout << "Input your userID number: ";
             cin >> user_id;
@@ -583,9 +715,20 @@ int main()
             unsigned int d, m, y;
             cout << "Give today's date in format YYYY MM DD: ";
             cin >> y >> m >> d;
+            if (!good_date(y, m, d))
+            {
+                cout << "Wrong date format.\n";
+                continue;
+            }
             unsigned int d2, m2, y2;
             cout << "Give deadline's date in format YYYY MM DD: ";
             cin >> y2 >> m2 >> d2;
+            if (!good_date(y2, m2, d2))
+            {
+                cout << "Wrong date format.\n";
+                continue;
+            }
+
             if (!Date({y2, m2, d2}).laterThan(Date({y, m, d})))
             {
                 cout << "Wrong deadline date.\n";
@@ -593,10 +736,11 @@ int main()
             }
             Book book = library.retrieveBook(book_id);
             library.getUsers()[user_id].getCardPtr()->borrowABook(book, Date({y, m, d}), Date({y2, m2, d2}));
+            cout << "Transaction successful.\n";
             continue;
         }
         if (command == "returnbook")
-        {// transakcja zwrotu egzemplarza do biblioteki
+        { // transakcja zwrotu egzemplarza do biblioteki
             unsigned int user_id, book_id;
             cout << "Input your userID number: ";
             cin >> user_id;
@@ -621,7 +765,11 @@ int main()
             unsigned int d, m, y;
             cout << "Give today's date in format YYYY MM DD: ";
             cin >> y >> m >> d;
-
+            if (!good_date(y, m, d))
+            {
+                cout << "Wrong date format.\n";
+                continue;
+            }
             pair<Book, bool> p = u.getCardPtr()->returnABook(book_id, Date({y, m, d}));
             library.putBackBook(p.first);
             bool is_overtime = p.second;
@@ -632,10 +780,11 @@ int main()
                 cin >> fine_value;
                 u.getCardPtr()->applyFine(Fine(fine_value));
             }
+            cout << "Book has been successfully returned to the library.\n";
             continue;
         }
         if (command == "userinfo")
-        {// wypisuje info o użytkowniku
+        { // wypisuje info o użytkowniku
             unsigned int user_id;
             cout << "Input your userID number: ";
             cin >> user_id;
@@ -648,7 +797,7 @@ int main()
             continue;
         }
         if (command == "borrowedbooks")
-        {// wypisuje wypożyczone książki na kartę biblioteczną konkretnego czytelnika
+        { // wypisuje wypożyczone książki na kartę biblioteczną konkretnego czytelnika
             unsigned int user_id;
             cout << "Input your userID number: ";
             cin >> user_id;
@@ -668,7 +817,7 @@ int main()
             continue;
         }
         if (command == "balance")
-        {// obecne saldo karty bibliotecznej czytelnika - to je się obciąża karą za nie książki w terminie
+        { // obecne saldo karty bibliotecznej czytelnika - to je się obciąża karą za nie książki w terminie
             unsigned int user_id;
             cout << "Input your userID number: ";
             cin >> user_id;
@@ -687,7 +836,66 @@ int main()
             unsigned int total_fine_value = 0;
             for (Fine f : fine_v)
                 total_fine_value += f.getFineValue();
-            cout << "Fines in total: " << total_fine_value << "$" << "\n";
+            cout << "Fines in total: " << total_fine_value << "$"
+                 << "\n";
+            continue;
+        }
+        if (command == "lsfines")
+        { // wylistowuje wszystkie naliczone kary na podaną kartę
+            unsigned int user_id;
+            cout << "Input your userID number: ";
+            cin >> user_id;
+            if (!library.getUsers().count(user_id))
+            {
+                cout << "This userID does not exist.\n";
+                continue;
+            }
+            User &u = library.getUsers()[user_id];
+            if (!u.doesHaveCard())
+            {
+                cout << "This user does not have a library card.\n";
+                continue;
+            }
+            const vector<Fine> &fine_v = u.getCardPtr()->getFines();
+            unsigned int total_fine_value = 0;
+            for (Fine f : fine_v)
+                cout << f.getFineValue() << "$ ";
+            cout << "\n";
+            continue;
+        }
+        if (command == "payfine")
+        { // spłać którąś z kar naliczonych dla tego użytkownika
+            unsigned int user_id;
+            cout << "Input your userID number: ";
+            cin >> user_id;
+            if (!library.getUsers().count(user_id))
+            {
+                cout << "This userID does not exist.\n";
+                continue;
+            }
+            User &u = library.getUsers()[user_id];
+            if (!u.doesHaveCard())
+            {
+                cout << "This user does not have a library card.\n";
+                continue;
+            }
+            unsigned int money;
+            cout << "How much money would you like to pay?: ";
+            cin >> money;
+            u.getCardPtr()->payFine(money);
+            continue;
+        }
+        if (command == "bookinfo")
+        { // zwraca info o książce o podanym ID
+            unsigned int book_id;
+            cout << "Input bookID: ";
+            cin >> book_id;
+            if (!library.getBookCollection().count(book_id))
+            {
+                cout << "This book does not exist or has already been borrowed.\n";
+                continue;
+            }
+            cout << library.bookInfo(book_id);
             continue;
         }
         cout << "Unrecognized command \n";
