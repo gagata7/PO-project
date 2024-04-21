@@ -1,2 +1,2 @@
 # PO-project
-My project for uni - library system simulator, written in C++.
+My project - library system simulator, written in object oriented C++.
